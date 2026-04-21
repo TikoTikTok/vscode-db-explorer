@@ -54,8 +54,21 @@ export class SqliteAdapter {
   }
 
   getIndexes(): { name: string; table: string; unique: boolean }[] {
-    const result = this.exec("SELECT name, tbl_name, \"unique\" FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-    return result.rows.map(r => ({ name: r[0] as string, table: r[1] as string, unique: r[2] === 1 }));
+    // sqlite_master has no "unique" column; use PRAGMA index_list per table instead
+    const tables = this.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+    const indexes: { name: string; table: string; unique: boolean }[] = [];
+    for (const tableRow of tables.rows) {
+      const tableName = tableRow[0] as string;
+      // PRAGMA index_list columns: seq(0), name(1), unique(2), origin(3), partial(4)
+      const idxList = this.exec(`PRAGMA index_list("${tableName}")`);
+      for (const row of idxList.rows) {
+        const name = row[1] as string;
+        if (!name.startsWith('sqlite_')) {
+          indexes.push({ name, table: tableName, unique: row[2] === 1 });
+        }
+      }
+    }
+    return indexes.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getTriggers(): { name: string; table: string }[] {
@@ -104,7 +117,11 @@ export class SqliteAdapter {
   }
 
   executeQuery(sql: string): QueryResult {
-    return this.exec(sql);
+    const result = this.exec(sql);
+    // Persist file and report affected rows for write queries
+    const rowsAffected = this.db ? (this.db.getRowsModified() as number) : 0;
+    if (rowsAffected > 0) { this.saveToFile(); }
+    return { ...result, rowsAffected };
   }
 
   insertRow(table: string, data: Record<string, any>): void {

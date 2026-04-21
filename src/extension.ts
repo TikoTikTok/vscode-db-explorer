@@ -20,27 +20,18 @@ export function activate(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(treeView);
 
-  context.subscriptions.push(
-    vscode.window.registerCustomEditorProvider(
-      'dbExplorer.editor',
-      new DatabaseEditorProvider(manager, context.extensionPath),
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
-
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   context.subscriptions.push(statusBar);
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(editor => {
-      if (editor && isDbFile(editor.document.uri)) {
-        statusBar.text = `$(database) DB: ${path.basename(editor.document.uri.fsPath)}`;
-        statusBar.show();
-      } else {
-        statusBar.hide();
-      }
-    })
+    vscode.window.registerCustomEditorProvider(
+      'dbExplorer.editor',
+      new DatabaseEditorProvider(manager, context.extensionPath, statusBar),
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
   );
+
+  // Status bar is updated by DatabaseEditorProvider via onDidChangeViewState
 
   context.subscriptions.push(
     vscode.commands.registerCommand('dbExplorer.openDatabase', async (uri?: vscode.Uri) => {

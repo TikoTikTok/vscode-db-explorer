@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { DatabaseManager } from '../database/DatabaseManager';
 import { WebviewBuilder } from '../webview/WebviewBuilder';
 
@@ -12,7 +13,8 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
 
   constructor(
     private readonly manager: DatabaseManager,
-    private readonly extensionPath: string
+    private readonly extensionPath: string,
+    private readonly statusBar?: vscode.StatusBarItem
   ) {}
 
   async openCustomDocument(
@@ -35,6 +37,21 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
   ): Promise<void> {
     webviewPanel.webview.options = { enableScripts: true };
     webviewPanel.webview.html = WebviewBuilder.build(webviewPanel.webview, this.extensionPath, document.uri.fsPath);
+
+    // Update status bar as this panel gains/loses focus
+    const dbName = path.basename(document.uri.fsPath);
+    const updateStatusBar = (active: boolean) => {
+      if (!this.statusBar) { return; }
+      if (active) {
+        this.statusBar.text = `$(database) DB: ${dbName}`;
+        this.statusBar.show();
+      } else {
+        this.statusBar.hide();
+      }
+    };
+    updateStatusBar(true);
+    webviewPanel.onDidChangeViewState(e => updateStatusBar(e.webviewPanel.active));
+    webviewPanel.onDidDispose(() => { if (this.statusBar) { this.statusBar.hide(); } });
 
     webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       const filePath = document.uri.fsPath;

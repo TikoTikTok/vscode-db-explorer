@@ -144,14 +144,7 @@
           "group": "navigation"
         }
       ]
-    },
-    "keybindings": [
-      {
-        "command": "dbExplorer.runQuery",
-        "key": "ctrl+enter",
-        "when": "activeWebviewPanelId == dbExplorer.editor"
-      }
-    ]
+    }
   },
   "scripts": {
     "compile": "webpack",

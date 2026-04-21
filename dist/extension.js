@@ -59,18 +59,10 @@ function activate(context) {
         showCollapseAll: true
     });
     context.subscriptions.push(treeView);
-    context.subscriptions.push(vscode.window.registerCustomEditorProvider('dbExplorer.editor', new DatabaseEditorProvider_1.DatabaseEditorProvider(manager, context.extensionPath), { webviewOptions: { retainContextWhenHidden: true } }));
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     context.subscriptions.push(statusBar);
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(editor => {
-        if (editor && isDbFile(editor.document.uri)) {
-            statusBar.text = `$(database) DB: ${path.basename(editor.document.uri.fsPath)}`;
-            statusBar.show();
-        }
-        else {
-            statusBar.hide();
-        }
-    }));
+    context.subscriptions.push(vscode.window.registerCustomEditorProvider('dbExplorer.editor', new DatabaseEditorProvider_1.DatabaseEditorProvider(manager, context.extensionPath, statusBar), { webviewOptions: { retainContextWhenHidden: true } }));
+    // Status bar is updated by DatabaseEditorProvider via onDidChangeViewState
     context.subscriptions.push(vscode.commands.registerCommand('dbExplorer.openDatabase', async (uri) => {
         if (!uri) {
             const files = await vscode.window.showOpenDialog({
@@ -372,8 +364,21 @@ class SqliteAdapter {
         return result.rows.map(r => r[0]);
     }
     getIndexes() {
-        const result = this.exec("SELECT name, tbl_name, \"unique\" FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY name");
-        return result.rows.map(r => ({ name: r[0], table: r[1], unique: r[2] === 1 }));
+        // sqlite_master has no "unique" column; use PRAGMA index_list per table instead
+        const tables = this.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        const indexes = [];
+        for (const tableRow of tables.rows) {
+            const tableName = tableRow[0];
+            // PRAGMA index_list columns: seq(0), name(1), unique(2), origin(3), partial(4)
+            const idxList = this.exec(`PRAGMA index_list("${tableName}")`);
+            for (const row of idxList.rows) {
+                const name = row[1];
+                if (!name.startsWith('sqlite_')) {
+                    indexes.push({ name, table: tableName, unique: row[2] === 1 });
+                }
+            }
+        }
+        return indexes.sort((a, b) => a.name.localeCompare(b.name));
     }
     getTriggers() {
         const result = this.exec("SELECT name, tbl_name FROM sqlite_master WHERE type='trigger' ORDER BY name");
@@ -414,7 +419,13 @@ class SqliteAdapter {
         return { columns: dataResult.columns, rows: dataResult.rows, total, offset, limit };
     }
     executeQuery(sql) {
-        return this.exec(sql);
+        const result = this.exec(sql);
+        // Persist file and report affected rows for write queries
+        const rowsAffected = this.db ? this.db.getRowsModified() : 0;
+        if (rowsAffected > 0) {
+            this.saveToFile();
+        }
+        return { ...result, rowsAffected };
     }
     insertRow(table, data) {
         const cols = Object.keys(data).map(c => `"${c}"`).join(', ');
@@ -941,11 +952,13 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseEditorProvider = void 0;
 const vscode = __importStar(__webpack_require__(1));
+const path = __importStar(__webpack_require__(2));
 const WebviewBuilder_1 = __webpack_require__(11);
 class DatabaseEditorProvider {
-    constructor(manager, extensionPath) {
+    constructor(manager, extensionPath, statusBar) {
         this.manager = manager;
         this.extensionPath = extensionPath;
+        this.statusBar = statusBar;
         this._onDidChangeCustomDocument = new vscode.EventEmitter();
         this.onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
     }
@@ -961,6 +974,25 @@ class DatabaseEditorProvider {
     async resolveCustomEditor(document, webviewPanel, _token) {
         webviewPanel.webview.options = { enableScripts: true };
         webviewPanel.webview.html = WebviewBuilder_1.WebviewBuilder.build(webviewPanel.webview, this.extensionPath, document.uri.fsPath);
+        // Update status bar as this panel gains/loses focus
+        const dbName = path.basename(document.uri.fsPath);
+        const updateStatusBar = (active) => {
+            if (!this.statusBar) {
+                return;
+            }
+            if (active) {
+                this.statusBar.text = `$(database) DB: ${dbName}`;
+                this.statusBar.show();
+            }
+            else {
+                this.statusBar.hide();
+            }
+        };
+        updateStatusBar(true);
+        webviewPanel.onDidChangeViewState(e => updateStatusBar(e.webviewPanel.active));
+        webviewPanel.onDidDispose(() => { if (this.statusBar) {
+            this.statusBar.hide();
+        } });
         webviewPanel.webview.onDidReceiveMessage(async (msg) => {
             const filePath = document.uri.fsPath;
             const adapter = this.manager.getAdapter(filePath);

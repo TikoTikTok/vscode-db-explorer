@@ -295,6 +295,10 @@
         var colName = data.columns[colIdx];
         if (cell === null || cell === undefined) {
           td.innerHTML = '<span class="null-value">NULL</span>';
+        } else if (cell instanceof Uint8Array || cell instanceof ArrayBuffer) {
+          var byteLen = cell.byteLength !== undefined ? cell.byteLength : cell.length;
+          td.innerHTML = '<span class="null-value">&lt;BLOB ' + byteLen + ' bytes&gt;</span>';
+          td.title = 'BLOB (' + byteLen + ' bytes)';
         } else {
           td.textContent = String(cell);
           td.title = String(cell);
@@ -511,7 +515,10 @@
     if (!container) { return; }
 
     if (!result.columns || result.columns.length === 0) {
-      container.innerHTML = '<div style="padding:12px;opacity:0.6;">Query executed successfully. No results returned.</div>';
+      var affectedMsg = (result.rowsAffected > 0)
+        ? result.rowsAffected + ' row(s) affected.'
+        : 'Query executed successfully. No results returned.';
+      container.innerHTML = '<div style="padding:12px;opacity:0.6;">' + affectedMsg + '</div>';
       return;
     }
 
@@ -534,6 +541,10 @@
         var td = document.createElement('td');
         if (cell === null || cell === undefined) {
           td.innerHTML = '<span class="null-value">NULL</span>';
+        } else if (cell instanceof Uint8Array || cell instanceof ArrayBuffer) {
+          var byteLen = cell.byteLength !== undefined ? cell.byteLength : cell.length;
+          td.innerHTML = '<span class="null-value">&lt;BLOB ' + byteLen + ' bytes&gt;</span>';
+          td.title = 'BLOB (' + byteLen + ' bytes)';
         } else {
           td.textContent = String(cell);
           td.title = String(cell);
@@ -670,6 +681,9 @@
         renderTableList(msg.tables);
         if (msg.tables && msg.tables.length > 0 && !state.currentTable) {
           selectTable(msg.tables[0].name);
+        } else if (state.currentTable && state.currentTab === 'data') {
+          // Reload data grid when refreshing an already-selected table
+          loadData();
         }
         break;
       case 'dataResult':
@@ -693,10 +707,12 @@
       case 'insertSuccess':
         state.pageOffset = 0;
         loadData();
+        vscode.postMessage({ type: 'getTables' });
         break;
       case 'deleteSuccess':
         state.selectedRows.clear();
         loadData();
+        vscode.postMessage({ type: 'getTables' });
         break;
       case 'error':
         showLoading(false);
