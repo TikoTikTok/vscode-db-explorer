@@ -34,6 +34,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Status bar is updated by DatabaseEditorProvider via onDidChangeViewState
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('dbExplorer.show', () => {
+      vscode.commands.executeCommand('workbench.view.extension.dbExplorer');
+    }),
+
     vscode.commands.registerCommand('dbExplorer.openDatabase', async (uri?: vscode.Uri) => {
       if (!uri) {
         const files = await vscode.window.showOpenDialog({

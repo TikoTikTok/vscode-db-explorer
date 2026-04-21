@@ -51,7 +51,7 @@
         {
           "id": "dbExplorer",
           "title": "DB Explorer",
-          "icon": "$(database)"
+          "icon": "media/database.svg"
         }
       ]
     },
@@ -64,6 +64,10 @@
       ]
     },
     "commands": [
+      {
+        "command": "dbExplorer.show",
+        "title": "DB Explorer: Show Panel"
+      },
       {
         "command": "dbExplorer.openDatabase",
         "title": "DB Explorer: Open Database",

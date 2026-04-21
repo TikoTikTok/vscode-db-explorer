@@ -63,7 +63,9 @@ function activate(context) {
     context.subscriptions.push(statusBar);
     context.subscriptions.push(vscode.window.registerCustomEditorProvider('dbExplorer.editor', new DatabaseEditorProvider_1.DatabaseEditorProvider(manager, context.extensionPath, statusBar), { webviewOptions: { retainContextWhenHidden: true } }));
     // Status bar is updated by DatabaseEditorProvider via onDidChangeViewState
-    context.subscriptions.push(vscode.commands.registerCommand('dbExplorer.openDatabase', async (uri) => {
+    context.subscriptions.push(vscode.commands.registerCommand('dbExplorer.show', () => {
+        vscode.commands.executeCommand('workbench.view.extension.dbExplorer');
+    }), vscode.commands.registerCommand('dbExplorer.openDatabase', async (uri) => {
         if (!uri) {
             const files = await vscode.window.showOpenDialog({
                 filters: { 'SQLite Database': ['db', 'sqlite', 'sqlite3', 'vscdb', 's3db', 'sl3'] },
