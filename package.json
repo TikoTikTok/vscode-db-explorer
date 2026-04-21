@@ -1,0 +1,175 @@
+{
+  "name": "db-explorer",
+  "displayName": "DB Explorer",
+  "description": "Explore, edit, and query SQLite databases (.db, .sqlite, .sqlite3, .vscdb) in VSCode",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Data Science"
+  ],
+  "activationEvents": [
+    "onLanguage:sql",
+    "workspaceContains:**/*.db",
+    "workspaceContains:**/*.sqlite",
+    "workspaceContains:**/*.sqlite3",
+    "workspaceContains:**/*.vscdb"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "dbExplorer.editor",
+        "displayName": "DB Explorer",
+        "selector": [
+          {
+            "filenamePattern": "*.db"
+          },
+          {
+            "filenamePattern": "*.sqlite"
+          },
+          {
+            "filenamePattern": "*.sqlite3"
+          },
+          {
+            "filenamePattern": "*.vscdb"
+          },
+          {
+            "filenamePattern": "*.s3db"
+          },
+          {
+            "filenamePattern": "*.sl3"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbExplorer",
+          "title": "DB Explorer",
+          "icon": "$(database)"
+        }
+      ]
+    },
+    "views": {
+      "dbExplorer": [
+        {
+          "id": "dbExplorer",
+          "name": "Databases"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "dbExplorer.openDatabase",
+        "title": "DB Explorer: Open Database",
+        "icon": "$(add)"
+      },
+      {
+        "command": "dbExplorer.refresh",
+        "title": "DB Explorer: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dbExplorer.disconnect",
+        "title": "DB Explorer: Disconnect",
+        "icon": "$(close)"
+      },
+      {
+        "command": "dbExplorer.openQuery",
+        "title": "DB Explorer: Open SQL Query"
+      },
+      {
+        "command": "dbExplorer.exportCSV",
+        "title": "DB Explorer: Export Table as CSV"
+      },
+      {
+        "command": "dbExplorer.exportJSON",
+        "title": "DB Explorer: Export Table as JSON"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "dbExplorer.openDatabase",
+          "when": "resourceExtname == .db || resourceExtname == .sqlite || resourceExtname == .sqlite3 || resourceExtname == .vscdb || resourceExtname == .s3db || resourceExtname == .sl3",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.openQuery",
+          "when": "resourceExtname == .db || resourceExtname == .sqlite || resourceExtname == .sqlite3 || resourceExtname == .vscdb",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.exportCSV",
+          "when": "view == dbExplorer && viewItem == table",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.exportJSON",
+          "when": "view == dbExplorer && viewItem == table",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "dbExplorer.openDatabase",
+          "when": "view == dbExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.refresh",
+          "when": "view == dbExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dbExplorer.disconnect",
+          "when": "view == dbExplorer && viewItem == database",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.exportCSV",
+          "when": "view == dbExplorer && viewItem == table",
+          "group": "navigation"
+        },
+        {
+          "command": "dbExplorer.exportJSON",
+          "when": "view == dbExplorer && viewItem == table",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "dbExplorer.runQuery",
+        "key": "ctrl+enter",
+        "when": "activeWebviewPanelId == dbExplorer.editor"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/sql.js": "^1.4.11",
+    "@types/vscode": "^1.80.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "ts-loader": "^9.4.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.80.0",
+    "webpack-cli": "^5.0.0"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.2"
+  },
+  "publisher": "okit"
+}
