@@ -11,11 +11,7 @@
     "Data Science"
   ],
   "activationEvents": [
-    "onLanguage:sql",
-    "workspaceContains:**/*.db",
-    "workspaceContains:**/*.sqlite",
-    "workspaceContains:**/*.sqlite3",
-    "workspaceContains:**/*.vscdb"
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
