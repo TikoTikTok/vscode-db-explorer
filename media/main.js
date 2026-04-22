@@ -684,6 +684,9 @@
         } else if (state.currentTable && state.currentTab === 'data') {
           // Reload data grid when refreshing an already-selected table
           loadData();
+        } else {
+          // Empty database or no table selected — dismiss loading immediately
+          showLoading(false);
         }
         break;
       case 'dataResult':
