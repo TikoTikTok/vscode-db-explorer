@@ -61,6 +61,7 @@ for DIR in ~/.vscode/extensions ~/.vscode-server/extensions; do
   cp "$SRC/dist/extension.js"     "$DEST/dist/extension.js"
   cp "$SRC/dist/extension.js.map" "$DEST/dist/extension.js.map"
   cp "$SRC/dist/sql-wasm.wasm"    "$DEST/dist/sql-wasm.wasm"
+  cp "$SRC/dist/sql-wasm.js"      "$DEST/dist/sql-wasm.js"
   cp "$SRC/media/main.css"        "$DEST/media/main.css"
   cp "$SRC/media/main.js"         "$DEST/media/main.js"
   cp "$SRC/media/database.svg"    "$DEST/media/database.svg"

@@ -12,7 +12,10 @@ module.exports = {
     libraryTarget: 'commonjs2'
   },
   externals: {
-    vscode: 'commonjs vscode'
+    vscode: 'commonjs vscode',
+    // sql.js uses module.exports inside webpack's scope which breaks in ESM context;
+    // ship it as a separate file and require it at runtime instead of bundling it
+    'sql.js': 'commonjs ./sql-wasm.js'
   },
   resolve: {
     extensions: ['.ts', '.js']
@@ -29,7 +32,8 @@ module.exports = {
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: 'node_modules/sql.js/dist/sql-wasm.wasm', to: 'sql-wasm.wasm' }
+        { from: 'node_modules/sql.js/dist/sql-wasm.wasm', to: 'sql-wasm.wasm' },
+        { from: 'node_modules/sql.js/dist/sql-wasm.js',   to: 'sql-wasm.js'   }
       ]
     })
   ],
