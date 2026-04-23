@@ -23,10 +23,13 @@ export function activate(context: vscode.ExtensionContext) {
   const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   context.subscriptions.push(statusBar);
 
+  const outputChannel = vscode.window.createOutputChannel('DB Explorer');
+  context.subscriptions.push(outputChannel);
+
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       'dbExplorer.editor',
-      new DatabaseEditorProvider(manager, context.extensionPath, statusBar),
+      new DatabaseEditorProvider(manager, context.extensionPath, statusBar, outputChannel),
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );

@@ -14,7 +14,8 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
   constructor(
     private readonly manager: DatabaseManager,
     private readonly extensionPath: string,
-    private readonly statusBar?: vscode.StatusBarItem
+    private readonly statusBar?: vscode.StatusBarItem,
+    private readonly outputChannel?: vscode.OutputChannel
   ) {}
 
   async openCustomDocument(
@@ -142,7 +143,12 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
         }
       } catch (e: any) {
         const errMsg = e?.message || String(e) || `Unknown error in handler: ${msg.type}`;
+        const logLine = `[${new Date().toISOString()}] Error in handler "${msg.type}": ${errMsg}\n${e?.stack || ''}`;
         console.error('[DB-Explorer] handler error:', msg.type, errMsg, e?.stack || '');
+        if (this.outputChannel) {
+          this.outputChannel.appendLine(logLine);
+          this.outputChannel.show(true); // show without stealing focus
+        }
         webviewPanel.webview.postMessage({ type: 'error', error: errMsg });
       }
     });

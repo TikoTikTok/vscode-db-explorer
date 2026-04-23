@@ -754,18 +754,32 @@
   }
 
   var _errorHideTimer = null;
+
+  // Wire close button once DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    var closeBtn = document.getElementById('error-toast-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function() {
+        var toast = document.getElementById('error-toast');
+        if (toast) { toast.style.display = 'none'; }
+        if (_errorHideTimer) { clearTimeout(_errorHideTimer); _errorHideTimer = null; }
+      });
+    }
+  });
+
   function showError(msg) {
-    if (!msg) { return; }                    // ignore empty / null / undefined
+    if (!msg || !String(msg).trim()) { return; }
     console.error('[DB-Explorer] error toast:', msg);
     var toast = document.getElementById('error-toast');
+    var msgEl = document.getElementById('error-toast-msg');
     if (!toast) { return; }
-    toast.textContent = String(msg);
-    toast.style.display = 'block';
+    if (msgEl) { msgEl.textContent = String(msg); } else { toast.textContent = String(msg); }
+    toast.style.display = 'flex';
     if (_errorHideTimer) { clearTimeout(_errorHideTimer); }
     _errorHideTimer = setTimeout(function() {
       toast.style.display = 'none';
       _errorHideTimer = null;
-    }, 6000);
+    }, 10000);
   }
 
   function escapeHtml(str) {

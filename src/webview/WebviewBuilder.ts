@@ -88,7 +88,10 @@ export class WebviewBuilder {
 <div id="loading-overlay" class="loading-overlay" style="display:none;">
   <div class="spinner"></div>
 </div>
-<div id="error-toast" class="error-toast" style="display:none;" role="alert"></div>
+<div id="error-toast" class="error-toast" style="display:none;" role="alert">
+  <span id="error-toast-msg"></span>
+  <button id="error-toast-close" class="error-toast-close" aria-label="Dismiss">✕</button>
+</div>
 <script nonce="${nonce}">window.__DB_NONCE__ = '${nonce}';</script>
 <script src="${editorBundleUri}"></script>
 <script nonce="${nonce}">${js}</script>

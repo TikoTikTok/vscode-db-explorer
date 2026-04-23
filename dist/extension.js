@@ -61,7 +61,9 @@ function activate(context) {
     context.subscriptions.push(treeView);
     const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     context.subscriptions.push(statusBar);
-    context.subscriptions.push(vscode.window.registerCustomEditorProvider('dbExplorer.editor', new DatabaseEditorProvider_1.DatabaseEditorProvider(manager, context.extensionPath, statusBar), { webviewOptions: { retainContextWhenHidden: true } }));
+    const outputChannel = vscode.window.createOutputChannel('DB Explorer');
+    context.subscriptions.push(outputChannel);
+    context.subscriptions.push(vscode.window.registerCustomEditorProvider('dbExplorer.editor', new DatabaseEditorProvider_1.DatabaseEditorProvider(manager, context.extensionPath, statusBar, outputChannel), { webviewOptions: { retainContextWhenHidden: true } }));
     // Status bar is updated by DatabaseEditorProvider via onDidChangeViewState
     context.subscriptions.push(vscode.commands.registerCommand('dbExplorer.show', () => {
         vscode.commands.executeCommand('workbench.view.extension.dbExplorer');
@@ -762,10 +764,11 @@ const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(2));
 const WebviewBuilder_1 = __webpack_require__(9);
 class DatabaseEditorProvider {
-    constructor(manager, extensionPath, statusBar) {
+    constructor(manager, extensionPath, statusBar, outputChannel) {
         this.manager = manager;
         this.extensionPath = extensionPath;
         this.statusBar = statusBar;
+        this.outputChannel = outputChannel;
         this._onDidChangeCustomDocument = new vscode.EventEmitter();
         this.onDidChangeCustomDocument = this._onDidChangeCustomDocument.event;
     }
@@ -886,7 +889,12 @@ class DatabaseEditorProvider {
             }
             catch (e) {
                 const errMsg = e?.message || String(e) || `Unknown error in handler: ${msg.type}`;
+                const logLine = `[${new Date().toISOString()}] Error in handler "${msg.type}": ${errMsg}\n${e?.stack || ''}`;
                 console.error('[DB-Explorer] handler error:', msg.type, errMsg, e?.stack || '');
+                if (this.outputChannel) {
+                    this.outputChannel.appendLine(logLine);
+                    this.outputChannel.show(true); // show without stealing focus
+                }
                 webviewPanel.webview.postMessage({ type: 'error', error: errMsg });
             }
         });
@@ -1032,7 +1040,10 @@ class WebviewBuilder {
 <div id="loading-overlay" class="loading-overlay" style="display:none;">
   <div class="spinner"></div>
 </div>
-<div id="error-toast" class="error-toast" style="display:none;" role="alert"></div>
+<div id="error-toast" class="error-toast" style="display:none;" role="alert">
+  <span id="error-toast-msg"></span>
+  <button id="error-toast-close" class="error-toast-close" aria-label="Dismiss">✕</button>
+</div>
 <script nonce="${nonce}">window.__DB_NONCE__ = '${nonce}';</script>
 <script src="${editorBundleUri}"></script>
 <script nonce="${nonce}">${js}</script>
