@@ -742,11 +742,11 @@
   var _errorHideTimer = null;
   function showError(msg) {
     if (!msg) { return; }                    // ignore empty / null / undefined
+    console.error('[DB-Explorer] error toast:', msg);
     var toast = document.getElementById('error-toast');
     if (!toast) { return; }
-    var textEl = toast.querySelector('.error-toast-text');
-    if (textEl) { textEl.textContent = String(msg); }
-    toast.style.display = 'flex';
+    toast.textContent = String(msg);
+    toast.style.display = 'block';
     if (_errorHideTimer) { clearTimeout(_errorHideTimer); }
     _errorHideTimer = setTimeout(function() {
       toast.style.display = 'none';
