@@ -122,6 +122,16 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
             webviewPanel.webview.postMessage({ type: 'exportJSONResult', json, table: msg.table });
             break;
           }
+          case 'getAllSchemas': {
+            const tables = adapter.getTables();
+            const schemas: Record<string, string[]> = {};
+            for (const t of tables) {
+              const schema = adapter.getTableSchema(t.name);
+              schemas[t.name] = schema.columns.map(c => c.name);
+            }
+            webviewPanel.webview.postMessage({ type: 'allSchemasResult', schemas, version: msg.version });
+            break;
+          }
           case 'refreshData': {
             const tables = adapter.getTables();
             webviewPanel.webview.postMessage({ type: 'tablesResult', tables });

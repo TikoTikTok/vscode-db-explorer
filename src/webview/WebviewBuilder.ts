@@ -11,12 +11,17 @@ export class WebviewBuilder {
     const nonce = WebviewBuilder.getNonce();
     const fileName = path.basename(filePath);
 
+    // Editor bundle loaded as a webview resource (not inlined) to keep HTML small
+    const editorBundleUri = webview.asWebviewUri(
+      vscode.Uri.file(path.join(extensionPath, 'dist', 'editor-bundle.js'))
+    );
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}' ${webview.cspSource};">
   <title>DB Explorer - ${fileName}</title>
   <style nonce="${nonce}">${css}</style>
 </head>
@@ -62,7 +67,7 @@ export class WebviewBuilder {
         <button id="btn-run-query" class="btn btn-primary">&#9654; Run (Ctrl+Enter)</button>
         <button id="btn-clear-query" class="btn">Clear</button>
       </div>
-      <textarea id="sql-editor" class="sql-editor" placeholder="SELECT * FROM table_name LIMIT 100;"></textarea>
+      <div id="query-editor-container" class="query-editor-container"></div>
       <div id="query-error" class="error-banner" style="display:none;"></div>
       <div id="query-results" class="grid-container results-area"></div>
     </div>
@@ -84,6 +89,8 @@ export class WebviewBuilder {
   <div class="spinner"></div>
 </div>
 <div id="error-toast" class="error-toast" style="display:none;"></div>
+<script nonce="${nonce}">window.__DB_NONCE__ = '${nonce}';</script>
+<script src="${editorBundleUri}"></script>
 <script nonce="${nonce}">${js}</script>
 </body>
 </html>`;

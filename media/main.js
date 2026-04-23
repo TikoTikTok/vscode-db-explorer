@@ -14,7 +14,8 @@
     tables: [],
     columns: [],
     selectedRows: new Set(),
-    pkColumn: null
+    pkColumn: null,
+    schemaVersion: 0  // monotonic counter to discard stale allSchemasResult responses
   };
 
   document.addEventListener('DOMContentLoaded', init);
@@ -453,8 +454,7 @@
     var btnClear = document.getElementById('btn-clear-query');
     if (btnClear) {
       btnClear.addEventListener('click', function() {
-        var editor = document.getElementById('sql-editor');
-        if (editor) { editor.value = ''; }
+        if (window.DbEditorAPI) { window.DbEditorAPI.setValue(''); }
         var results = document.getElementById('query-results');
         if (results) { results.innerHTML = ''; }
         var errEl = document.getElementById('query-error');
@@ -462,28 +462,23 @@
       });
     }
 
-    var sqlEditor = document.getElementById('sql-editor');
-    if (sqlEditor) {
-      sqlEditor.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runQuery(); }
-      });
-    }
-
     var historySelect = document.getElementById('query-history');
     if (historySelect) {
       historySelect.addEventListener('change', function(e) {
         var val = e.target.value;
-        if (val) {
-          var editor = document.getElementById('sql-editor');
-          if (editor) { editor.value = val; }
-        }
+        if (val && window.DbEditorAPI) { window.DbEditorAPI.setValue(val); }
       });
+    }
+
+    // Initialize CodeMirror editor — DbEditorAPI is set by editor-bundle.js
+    var container = document.getElementById('query-editor-container');
+    if (container && window.DbEditorAPI) {
+      window.DbEditorAPI.createEditor(container, runQuery);
     }
   }
 
   function runQuery() {
-    var editor = document.getElementById('sql-editor');
-    var sql = editor ? editor.value.trim() : '';
+    var sql = window.DbEditorAPI ? window.DbEditorAPI.getValue().trim() : '';
     if (!sql) { return; }
     addToHistory(sql);
     var errEl = document.getElementById('query-error');
@@ -674,6 +669,11 @@
     container.innerHTML = html;
   }
 
+  function requestSchemaRefresh() {
+    state.schemaVersion++;
+    vscode.postMessage({ type: 'getAllSchemas', version: state.schemaVersion });
+  }
+
   window.addEventListener('message', function(event) {
     var msg = event.data;
     switch (msg.type) {
@@ -688,12 +688,22 @@
           // Empty database or no table selected — dismiss loading immediately
           showLoading(false);
         }
+        // Refresh autocomplete schema whenever table list changes
+        requestSchemaRefresh();
+        break;
+      case 'allSchemasResult':
+        // Ignore stale responses (versioned to prevent race conditions)
+        if (msg.version === state.schemaVersion && window.DbEditorAPI) {
+          window.DbEditorAPI.updateSchema(msg.schemas);
+        }
         break;
       case 'dataResult':
         renderDataGrid(msg.data);
         break;
       case 'queryResult':
         renderQueryResults(msg.result);
+        // Always refresh schema — user may have run CREATE/DROP/ALTER TABLE
+        requestSchemaRefresh();
         break;
       case 'queryError':
         renderQueryError(msg.error);

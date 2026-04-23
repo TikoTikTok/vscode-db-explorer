@@ -29,6 +29,11 @@ export class SqliteAdapter {
     this.db.run(sql, params);
   }
 
+  /** Escape a SQL identifier (table/column name) for use inside double-quoted literals. */
+  private esc(name: string): string {
+    return name.replace(/"/g, '""');
+  }
+
   private exec(sql: string): QueryResult {
     if (!this.db) { throw new Error('Database not open'); }
     try {
@@ -43,7 +48,7 @@ export class SqliteAdapter {
   getTables(): TableInfo[] {
     const result = this.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
     return result.rows.map(r => {
-      const countResult = this.exec(`SELECT COUNT(*) FROM "${r[0]}"`);
+      const countResult = this.exec(`SELECT COUNT(*) FROM "${this.esc(r[0])}"`);
       return { name: r[0] as string, rowCount: countResult.rows[0][0] as number };
     });
   }
@@ -60,7 +65,7 @@ export class SqliteAdapter {
     for (const tableRow of tables.rows) {
       const tableName = tableRow[0] as string;
       // PRAGMA index_list columns: seq(0), name(1), unique(2), origin(3), partial(4)
-      const idxList = this.exec(`PRAGMA index_list("${tableName}")`);
+      const idxList = this.exec(`PRAGMA index_list("${this.esc(tableName)}")`);
       for (const row of idxList.rows) {
         const name = row[1] as string;
         if (!name.startsWith('sqlite_')) {
@@ -77,25 +82,25 @@ export class SqliteAdapter {
   }
 
   getTableSchema(table: string): TableSchema {
-    const colResult = this.exec(`PRAGMA table_info("${table}")`);
+    const colResult = this.exec(`PRAGMA table_info("${this.esc(table)}")`);
     const columns: ColumnInfo[] = colResult.rows.map(r => ({
       name: r[1] as string, type: r[2] as string, notnull: r[3] === 1,
       dflt_value: r[4], pk: r[5] === 1
     }));
 
-    const idxResult = this.exec(`PRAGMA index_list("${table}")`);
+    const idxResult = this.exec(`PRAGMA index_list("${this.esc(table)}")`);
     const indexes: IndexInfo[] = idxResult.rows.map(r => {
-      const idxColResult = this.exec(`PRAGMA index_info("${r[1]}")`);
+      const idxColResult = this.exec(`PRAGMA index_info("${this.esc(r[1] as string)}")`);
       return { name: r[1] as string, unique: r[2] === 1, columns: idxColResult.rows.map(c => c[2] as string) };
     });
 
-    const fkResult = this.exec(`PRAGMA foreign_key_list("${table}")`);
+    const fkResult = this.exec(`PRAGMA foreign_key_list("${this.esc(table)}")`);
     const foreignKeys: ForeignKeyInfo[] = fkResult.rows.map(r => ({
       from: r[3] as string, table: r[2] as string, to: r[4] as string,
       on_update: r[5] as string, on_delete: r[6] as string
     }));
 
-    const sqlResult = this.exec(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${table}'`);
+    const sqlResult = this.exec(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${table.replace(/'/g, "''")}'`);
     const sql = sqlResult.rows[0]?.[0] as string || '';
 
     return { name: table, sql, columns, indexes, foreignKeys };
@@ -104,15 +109,15 @@ export class SqliteAdapter {
   getTableData(table: string, offset: number, limit: number, sortCol?: string, sortDir: 'ASC' | 'DESC' = 'ASC', filter?: string): DataPage {
     let wherePart = '';
     if (filter && filter.trim()) {
-      const colResult = this.exec(`PRAGMA table_info("${table}")`);
+      const colResult = this.exec(`PRAGMA table_info("${this.esc(table)}")`);
       const cols = colResult.rows.map(r => r[1] as string);
-      const conditions = cols.map(c => `CAST("${c}" AS TEXT) LIKE '%${filter.replace(/'/g, "''")}%'`).join(' OR ');
+      const conditions = cols.map(c => `CAST("${this.esc(c)}" AS TEXT) LIKE '%${filter.replace(/'/g, "''")}%'`).join(' OR ');
       wherePart = `WHERE ${conditions}`;
     }
-    const orderPart = sortCol ? `ORDER BY "${sortCol}" ${sortDir}` : '';
-    const countResult = this.exec(`SELECT COUNT(*) FROM "${table}" ${wherePart}`);
+    const orderPart = sortCol ? `ORDER BY "${this.esc(sortCol)}" ${sortDir}` : '';
+    const countResult = this.exec(`SELECT COUNT(*) FROM "${this.esc(table)}" ${wherePart}`);
     const total = countResult.rows[0][0] as number;
-    const dataResult = this.exec(`SELECT * FROM "${table}" ${wherePart} ${orderPart} LIMIT ${limit} OFFSET ${offset}`);
+    const dataResult = this.exec(`SELECT * FROM "${this.esc(table)}" ${wherePart} ${orderPart} LIMIT ${limit} OFFSET ${offset}`);
     return { columns: dataResult.columns, rows: dataResult.rows, total, offset, limit };
   }
 
@@ -125,21 +130,21 @@ export class SqliteAdapter {
   }
 
   insertRow(table: string, data: Record<string, any>): void {
-    const cols = Object.keys(data).map(c => `"${c}"`).join(', ');
+    const cols = Object.keys(data).map(c => `"${this.esc(c)}"`).join(', ');
     const placeholders = Object.keys(data).map(() => '?').join(', ');
     const values = Object.values(data);
-    this.run(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders})`, values);
+    this.run(`INSERT INTO "${this.esc(table)}" (${cols}) VALUES (${placeholders})`, values);
     this.saveToFile();
   }
 
   updateCell(table: string, pkCol: string, pkVal: any, col: string, val: any): void {
-    this.run(`UPDATE "${table}" SET "${col}" = ? WHERE "${pkCol}" = ?`, [val, pkVal]);
+    this.run(`UPDATE "${this.esc(table)}" SET "${this.esc(col)}" = ? WHERE "${this.esc(pkCol)}" = ?`, [val, pkVal]);
     this.saveToFile();
   }
 
   deleteRows(table: string, pkCol: string, pkVals: any[]): void {
     const placeholders = pkVals.map(() => '?').join(', ');
-    this.run(`DELETE FROM "${table}" WHERE "${pkCol}" IN (${placeholders})`, pkVals);
+    this.run(`DELETE FROM "${this.esc(table)}" WHERE "${this.esc(pkCol)}" IN (${placeholders})`, pkVals);
     this.saveToFile();
   }
 

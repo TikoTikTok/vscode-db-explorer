@@ -334,6 +334,10 @@ class SqliteAdapter {
         }
         this.db.run(sql, params);
     }
+    /** Escape a SQL identifier (table/column name) for use inside double-quoted literals. */
+    esc(name) {
+        return name.replace(/"/g, '""');
+    }
     exec(sql) {
         if (!this.db) {
             throw new Error('Database not open');
@@ -352,7 +356,7 @@ class SqliteAdapter {
     getTables() {
         const result = this.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
         return result.rows.map(r => {
-            const countResult = this.exec(`SELECT COUNT(*) FROM "${r[0]}"`);
+            const countResult = this.exec(`SELECT COUNT(*) FROM "${this.esc(r[0])}"`);
             return { name: r[0], rowCount: countResult.rows[0][0] };
         });
     }
@@ -367,7 +371,7 @@ class SqliteAdapter {
         for (const tableRow of tables.rows) {
             const tableName = tableRow[0];
             // PRAGMA index_list columns: seq(0), name(1), unique(2), origin(3), partial(4)
-            const idxList = this.exec(`PRAGMA index_list("${tableName}")`);
+            const idxList = this.exec(`PRAGMA index_list("${this.esc(tableName)}")`);
             for (const row of idxList.rows) {
                 const name = row[1];
                 if (!name.startsWith('sqlite_')) {
@@ -382,37 +386,37 @@ class SqliteAdapter {
         return result.rows.map(r => ({ name: r[0], table: r[1] }));
     }
     getTableSchema(table) {
-        const colResult = this.exec(`PRAGMA table_info("${table}")`);
+        const colResult = this.exec(`PRAGMA table_info("${this.esc(table)}")`);
         const columns = colResult.rows.map(r => ({
             name: r[1], type: r[2], notnull: r[3] === 1,
             dflt_value: r[4], pk: r[5] === 1
         }));
-        const idxResult = this.exec(`PRAGMA index_list("${table}")`);
+        const idxResult = this.exec(`PRAGMA index_list("${this.esc(table)}")`);
         const indexes = idxResult.rows.map(r => {
-            const idxColResult = this.exec(`PRAGMA index_info("${r[1]}")`);
+            const idxColResult = this.exec(`PRAGMA index_info("${this.esc(r[1])}")`);
             return { name: r[1], unique: r[2] === 1, columns: idxColResult.rows.map(c => c[2]) };
         });
-        const fkResult = this.exec(`PRAGMA foreign_key_list("${table}")`);
+        const fkResult = this.exec(`PRAGMA foreign_key_list("${this.esc(table)}")`);
         const foreignKeys = fkResult.rows.map(r => ({
             from: r[3], table: r[2], to: r[4],
             on_update: r[5], on_delete: r[6]
         }));
-        const sqlResult = this.exec(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${table}'`);
+        const sqlResult = this.exec(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${table.replace(/'/g, "''")}'`);
         const sql = sqlResult.rows[0]?.[0] || '';
         return { name: table, sql, columns, indexes, foreignKeys };
     }
     getTableData(table, offset, limit, sortCol, sortDir = 'ASC', filter) {
         let wherePart = '';
         if (filter && filter.trim()) {
-            const colResult = this.exec(`PRAGMA table_info("${table}")`);
+            const colResult = this.exec(`PRAGMA table_info("${this.esc(table)}")`);
             const cols = colResult.rows.map(r => r[1]);
-            const conditions = cols.map(c => `CAST("${c}" AS TEXT) LIKE '%${filter.replace(/'/g, "''")}%'`).join(' OR ');
+            const conditions = cols.map(c => `CAST("${this.esc(c)}" AS TEXT) LIKE '%${filter.replace(/'/g, "''")}%'`).join(' OR ');
             wherePart = `WHERE ${conditions}`;
         }
-        const orderPart = sortCol ? `ORDER BY "${sortCol}" ${sortDir}` : '';
-        const countResult = this.exec(`SELECT COUNT(*) FROM "${table}" ${wherePart}`);
+        const orderPart = sortCol ? `ORDER BY "${this.esc(sortCol)}" ${sortDir}` : '';
+        const countResult = this.exec(`SELECT COUNT(*) FROM "${this.esc(table)}" ${wherePart}`);
         const total = countResult.rows[0][0];
-        const dataResult = this.exec(`SELECT * FROM "${table}" ${wherePart} ${orderPart} LIMIT ${limit} OFFSET ${offset}`);
+        const dataResult = this.exec(`SELECT * FROM "${this.esc(table)}" ${wherePart} ${orderPart} LIMIT ${limit} OFFSET ${offset}`);
         return { columns: dataResult.columns, rows: dataResult.rows, total, offset, limit };
     }
     executeQuery(sql) {
@@ -425,19 +429,19 @@ class SqliteAdapter {
         return { ...result, rowsAffected };
     }
     insertRow(table, data) {
-        const cols = Object.keys(data).map(c => `"${c}"`).join(', ');
+        const cols = Object.keys(data).map(c => `"${this.esc(c)}"`).join(', ');
         const placeholders = Object.keys(data).map(() => '?').join(', ');
         const values = Object.values(data);
-        this.run(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders})`, values);
+        this.run(`INSERT INTO "${this.esc(table)}" (${cols}) VALUES (${placeholders})`, values);
         this.saveToFile();
     }
     updateCell(table, pkCol, pkVal, col, val) {
-        this.run(`UPDATE "${table}" SET "${col}" = ? WHERE "${pkCol}" = ?`, [val, pkVal]);
+        this.run(`UPDATE "${this.esc(table)}" SET "${this.esc(col)}" = ? WHERE "${this.esc(pkCol)}" = ?`, [val, pkVal]);
         this.saveToFile();
     }
     deleteRows(table, pkCol, pkVals) {
         const placeholders = pkVals.map(() => '?').join(', ');
-        this.run(`DELETE FROM "${table}" WHERE "${pkCol}" IN (${placeholders})`, pkVals);
+        this.run(`DELETE FROM "${this.esc(table)}" WHERE "${this.esc(pkCol)}" IN (${placeholders})`, pkVals);
         this.saveToFile();
     }
     getDatabaseInfo() {
@@ -857,6 +861,16 @@ class DatabaseEditorProvider {
                         webviewPanel.webview.postMessage({ type: 'exportJSONResult', json, table: msg.table });
                         break;
                     }
+                    case 'getAllSchemas': {
+                        const tables = adapter.getTables();
+                        const schemas = {};
+                        for (const t of tables) {
+                            const schema = adapter.getTableSchema(t.name);
+                            schemas[t.name] = schema.columns.map(c => c.name);
+                        }
+                        webviewPanel.webview.postMessage({ type: 'allSchemasResult', schemas, version: msg.version });
+                        break;
+                    }
                     case 'refreshData': {
                         const tables = adapter.getTables();
                         webviewPanel.webview.postMessage({ type: 'tablesResult', tables });
@@ -929,6 +943,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.WebviewBuilder = void 0;
 const fs = __importStar(__webpack_require__(3));
 const path = __importStar(__webpack_require__(2));
+const vscode = __importStar(__webpack_require__(1));
 class WebviewBuilder {
     static build(webview, extensionPath, filePath) {
         const cssPath = path.join(extensionPath, 'media', 'main.css');
@@ -937,12 +952,14 @@ class WebviewBuilder {
         const js = fs.readFileSync(jsPath, 'utf8');
         const nonce = WebviewBuilder.getNonce();
         const fileName = path.basename(filePath);
+        // Editor bundle loaded as a webview resource (not inlined) to keep HTML small
+        const editorBundleUri = webview.asWebviewUri(vscode.Uri.file(path.join(extensionPath, 'dist', 'editor-bundle.js')));
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}' ${webview.cspSource};">
   <title>DB Explorer - ${fileName}</title>
   <style nonce="${nonce}">${css}</style>
 </head>
@@ -988,7 +1005,7 @@ class WebviewBuilder {
         <button id="btn-run-query" class="btn btn-primary">&#9654; Run (Ctrl+Enter)</button>
         <button id="btn-clear-query" class="btn">Clear</button>
       </div>
-      <textarea id="sql-editor" class="sql-editor" placeholder="SELECT * FROM table_name LIMIT 100;"></textarea>
+      <div id="query-editor-container" class="query-editor-container"></div>
       <div id="query-error" class="error-banner" style="display:none;"></div>
       <div id="query-results" class="grid-container results-area"></div>
     </div>
@@ -1010,6 +1027,8 @@ class WebviewBuilder {
   <div class="spinner"></div>
 </div>
 <div id="error-toast" class="error-toast" style="display:none;"></div>
+<script nonce="${nonce}">window.__DB_NONCE__ = '${nonce}';</script>
+<script src="${editorBundleUri}"></script>
 <script nonce="${nonce}">${js}</script>
 </body>
 </html>`;

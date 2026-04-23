@@ -147,11 +147,17 @@
     }
   },
   "scripts": {
-    "compile": "webpack",
+    "compile": "webpack --config webpack.config.js && webpack --config webpack.editor.config.js",
     "watch": "webpack --watch",
-    "package": "webpack --mode production"
+    "package": "webpack --config webpack.config.js --mode production && webpack --config webpack.editor.config.js --mode production"
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.41.1",
     "@types/node": "^18.0.0",
     "@types/sql.js": "^1.4.11",
     "@types/vscode": "^1.80.0",
