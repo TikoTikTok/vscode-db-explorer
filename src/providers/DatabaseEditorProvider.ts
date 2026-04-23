@@ -141,7 +141,9 @@ export class DatabaseEditorProvider implements vscode.CustomEditorProvider<DbDoc
             webviewPanel.webview.postMessage({ type: 'error', error: `Unknown message type: ${msg.type}` });
         }
       } catch (e: any) {
-        webviewPanel.webview.postMessage({ type: 'error', error: e.message });
+        const errMsg = e?.message || String(e) || `Unknown error in handler: ${msg.type}`;
+        console.error('[DB-Explorer] handler error:', msg.type, errMsg, e?.stack || '');
+        webviewPanel.webview.postMessage({ type: 'error', error: errMsg });
       }
     });
   }

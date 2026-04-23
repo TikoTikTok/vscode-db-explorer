@@ -885,7 +885,9 @@ class DatabaseEditorProvider {
                 }
             }
             catch (e) {
-                webviewPanel.webview.postMessage({ type: 'error', error: e.message });
+                const errMsg = e?.message || String(e) || `Unknown error in handler: ${msg.type}`;
+                console.error('[DB-Explorer] handler error:', msg.type, errMsg, e?.stack || '');
+                webviewPanel.webview.postMessage({ type: 'error', error: errMsg });
             }
         });
     }

@@ -1,6 +1,20 @@
 (function() {
   const vscode = acquireVsCodeApi();
 
+  // Catch any unhandled JS errors so they surface in the error toast + console
+  window.onerror = function(msg, _src, _line, _col, error) {
+    var text = (error && error.message) || String(msg);
+    console.error('[DB-Explorer] uncaught error:', text);
+    showError(text);
+    return false;
+  };
+  window.onunhandledrejection = function(event) {
+    var reason = event.reason;
+    var text = (reason && reason.message) || String(reason) || 'Unhandled promise rejection';
+    console.error('[DB-Explorer] unhandled rejection:', text);
+    showError(text);
+  };
+
   const state = {
     currentTable: null,
     currentTab: 'data',
