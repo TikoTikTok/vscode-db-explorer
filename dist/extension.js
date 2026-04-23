@@ -549,7 +549,7 @@ exports.DatabaseTreeProvider = exports.DatabaseTreeItem = void 0;
 const vscode = __importStar(__webpack_require__(1));
 const path = __importStar(__webpack_require__(2));
 class DatabaseTreeItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, itemType, filePath, table, description) {
+    constructor(label, collapsibleState, itemType, filePath, table, description, stableId) {
         super(label, collapsibleState);
         this.label = label;
         this.collapsibleState = collapsibleState;
@@ -559,6 +559,9 @@ class DatabaseTreeItem extends vscode.TreeItem {
         this.contextValue = itemType;
         if (description) {
             this.description = description;
+        }
+        if (stableId) {
+            this.id = stableId;
         }
         this.setupIcon();
     }
@@ -611,22 +614,23 @@ class DatabaseTreeProvider {
         if (!element) {
             const databases = this.manager.getOpenDatabases();
             if (databases.length === 0) {
-                const emptyItem = new DatabaseTreeItem('No databases open. Click + to open.', vscode.TreeItemCollapsibleState.None, 'empty');
+                const emptyItem = new DatabaseTreeItem('No databases open. Click + to open.', vscode.TreeItemCollapsibleState.None, 'empty', undefined, undefined, undefined, 'empty-placeholder');
                 emptyItem.command = { command: 'dbExplorer.openDatabase', title: 'Open Database' };
                 return Promise.resolve([emptyItem]);
             }
             return Promise.resolve(databases.map(dbPath => {
-                const item = new DatabaseTreeItem(path.basename(dbPath), vscode.TreeItemCollapsibleState.Expanded, 'database', dbPath, undefined, dbPath);
+                const item = new DatabaseTreeItem(path.basename(dbPath), vscode.TreeItemCollapsibleState.Expanded, 'database', dbPath, undefined, dbPath, `db:${dbPath}`);
                 item.tooltip = dbPath;
                 return item;
             }));
         }
         if (element.itemType === 'database' && element.filePath) {
+            const fp = element.filePath;
             return Promise.resolve([
-                new DatabaseTreeItem('Tables', vscode.TreeItemCollapsibleState.Expanded, 'folder', element.filePath, undefined, ''),
-                new DatabaseTreeItem('Views', vscode.TreeItemCollapsibleState.Collapsed, 'folder-views', element.filePath, undefined, ''),
-                new DatabaseTreeItem('Indexes', vscode.TreeItemCollapsibleState.Collapsed, 'folder-indexes', element.filePath, undefined, ''),
-                new DatabaseTreeItem('Triggers', vscode.TreeItemCollapsibleState.Collapsed, 'folder-triggers', element.filePath, undefined, ''),
+                new DatabaseTreeItem('Tables', vscode.TreeItemCollapsibleState.Expanded, 'folder', fp, undefined, '', `${fp}:tables`),
+                new DatabaseTreeItem('Views', vscode.TreeItemCollapsibleState.Collapsed, 'folder-views', fp, undefined, '', `${fp}:views`),
+                new DatabaseTreeItem('Indexes', vscode.TreeItemCollapsibleState.Collapsed, 'folder-indexes', fp, undefined, '', `${fp}:indexes`),
+                new DatabaseTreeItem('Triggers', vscode.TreeItemCollapsibleState.Collapsed, 'folder-triggers', fp, undefined, '', `${fp}:triggers`),
             ]);
         }
         if (element.itemType === 'folder' && element.filePath) {
@@ -637,7 +641,7 @@ class DatabaseTreeProvider {
                 }
                 const tables = adapter.getTables();
                 return Promise.resolve(tables.map(t => {
-                    const item = new DatabaseTreeItem(t.name, vscode.TreeItemCollapsibleState.Collapsed, 'table', element.filePath, t.name, `${t.rowCount} rows`);
+                    const item = new DatabaseTreeItem(t.name, vscode.TreeItemCollapsibleState.Collapsed, 'table', element.filePath, t.name, `${t.rowCount} rows`, `${element.filePath}:table:${t.name}`);
                     item.tooltip = `${t.name} (${t.rowCount} rows)`;
                     return item;
                 }));
@@ -653,7 +657,7 @@ class DatabaseTreeProvider {
                     return Promise.resolve([]);
                 }
                 const views = adapter.getViews();
-                return Promise.resolve(views.map(v => new DatabaseTreeItem(v, vscode.TreeItemCollapsibleState.None, 'view', element.filePath)));
+                return Promise.resolve(views.map(v => new DatabaseTreeItem(v, vscode.TreeItemCollapsibleState.None, 'view', element.filePath, undefined, undefined, `${element.filePath}:view:${v}`)));
             }
             catch (e) {
                 return Promise.resolve([]);
@@ -666,7 +670,7 @@ class DatabaseTreeProvider {
                     return Promise.resolve([]);
                 }
                 const indexes = adapter.getIndexes();
-                return Promise.resolve(indexes.map(i => new DatabaseTreeItem(i.name, vscode.TreeItemCollapsibleState.None, 'index', element.filePath, undefined, `on ${i.table}${i.unique ? ' (unique)' : ''}`)));
+                return Promise.resolve(indexes.map(i => new DatabaseTreeItem(i.name, vscode.TreeItemCollapsibleState.None, 'index', element.filePath, undefined, `on ${i.table}${i.unique ? ' (unique)' : ''}`, `${element.filePath}:index:${i.name}`)));
             }
             catch (e) {
                 return Promise.resolve([]);
@@ -679,7 +683,7 @@ class DatabaseTreeProvider {
                     return Promise.resolve([]);
                 }
                 const triggers = adapter.getTriggers();
-                return Promise.resolve(triggers.map(t => new DatabaseTreeItem(t.name, vscode.TreeItemCollapsibleState.None, 'trigger', element.filePath, undefined, `on ${t.table}`)));
+                return Promise.resolve(triggers.map(t => new DatabaseTreeItem(t.name, vscode.TreeItemCollapsibleState.None, 'trigger', element.filePath, undefined, `on ${t.table}`, `${element.filePath}:trigger:${t.name}`)));
             }
             catch (e) {
                 return Promise.resolve([]);
@@ -701,7 +705,7 @@ class DatabaseTreeProvider {
                         badges.push('NOT NULL');
                     }
                     const label = `${col.name} (${col.type || 'ANY'}${badges.length ? ' · ' + badges.join(' · ') : ''})`;
-                    return new DatabaseTreeItem(label, vscode.TreeItemCollapsibleState.None, 'column', element.filePath);
+                    return new DatabaseTreeItem(label, vscode.TreeItemCollapsibleState.None, 'column', element.filePath, undefined, undefined, `${element.filePath}:col:${element.table}:${col.name}`);
                 }));
             }
             catch (e) {

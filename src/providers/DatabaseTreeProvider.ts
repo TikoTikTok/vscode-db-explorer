@@ -9,11 +9,13 @@ export class DatabaseTreeItem extends vscode.TreeItem {
     public readonly itemType: string,
     public readonly filePath?: string,
     public readonly table?: string,
-    description?: string
+    description?: string,
+    stableId?: string
   ) {
     super(label, collapsibleState);
     this.contextValue = itemType;
     if (description) { this.description = description; }
+    if (stableId) { this.id = stableId; }
     this.setupIcon();
   }
 
@@ -69,7 +71,7 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
     if (!element) {
       const databases = this.manager.getOpenDatabases();
       if (databases.length === 0) {
-        const emptyItem = new DatabaseTreeItem('No databases open. Click + to open.', vscode.TreeItemCollapsibleState.None, 'empty');
+        const emptyItem = new DatabaseTreeItem('No databases open. Click + to open.', vscode.TreeItemCollapsibleState.None, 'empty', undefined, undefined, undefined, 'empty-placeholder');
         emptyItem.command = { command: 'dbExplorer.openDatabase', title: 'Open Database' };
         return Promise.resolve([emptyItem]);
       }
@@ -80,7 +82,8 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
           'database',
           dbPath,
           undefined,
-          dbPath
+          dbPath,
+          `db:${dbPath}`
         );
         item.tooltip = dbPath;
         return item;
@@ -88,11 +91,12 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
     }
 
     if (element.itemType === 'database' && element.filePath) {
+      const fp = element.filePath;
       return Promise.resolve([
-        new DatabaseTreeItem('Tables', vscode.TreeItemCollapsibleState.Expanded, 'folder', element.filePath, undefined, ''),
-        new DatabaseTreeItem('Views', vscode.TreeItemCollapsibleState.Collapsed, 'folder-views', element.filePath, undefined, ''),
-        new DatabaseTreeItem('Indexes', vscode.TreeItemCollapsibleState.Collapsed, 'folder-indexes', element.filePath, undefined, ''),
-        new DatabaseTreeItem('Triggers', vscode.TreeItemCollapsibleState.Collapsed, 'folder-triggers', element.filePath, undefined, ''),
+        new DatabaseTreeItem('Tables',   vscode.TreeItemCollapsibleState.Expanded,  'folder',          fp, undefined, '', `${fp}:tables`),
+        new DatabaseTreeItem('Views',    vscode.TreeItemCollapsibleState.Collapsed, 'folder-views',    fp, undefined, '', `${fp}:views`),
+        new DatabaseTreeItem('Indexes',  vscode.TreeItemCollapsibleState.Collapsed, 'folder-indexes',  fp, undefined, '', `${fp}:indexes`),
+        new DatabaseTreeItem('Triggers', vscode.TreeItemCollapsibleState.Collapsed, 'folder-triggers', fp, undefined, '', `${fp}:triggers`),
       ]);
     }
 
@@ -108,7 +112,8 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
             'table',
             element.filePath,
             t.name,
-            `${t.rowCount} rows`
+            `${t.rowCount} rows`,
+            `${element.filePath}:table:${t.name}`
           );
           item.tooltip = `${t.name} (${t.rowCount} rows)`;
           return item;
@@ -123,7 +128,7 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
         const adapter = this.manager.getAdapter(element.filePath);
         if (!adapter) { return Promise.resolve([]); }
         const views = adapter.getViews();
-        return Promise.resolve(views.map(v => new DatabaseTreeItem(v, vscode.TreeItemCollapsibleState.None, 'view', element.filePath)));
+        return Promise.resolve(views.map(v => new DatabaseTreeItem(v, vscode.TreeItemCollapsibleState.None, 'view', element.filePath, undefined, undefined, `${element.filePath}:view:${v}`)));
       } catch (e) {
         return Promise.resolve([]);
       }
@@ -140,7 +145,8 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
           'index',
           element.filePath,
           undefined,
-          `on ${i.table}${i.unique ? ' (unique)' : ''}`
+          `on ${i.table}${i.unique ? ' (unique)' : ''}`,
+          `${element.filePath}:index:${i.name}`
         )));
       } catch (e) {
         return Promise.resolve([]);
@@ -158,7 +164,8 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
           'trigger',
           element.filePath,
           undefined,
-          `on ${t.table}`
+          `on ${t.table}`,
+          `${element.filePath}:trigger:${t.name}`
         )));
       } catch (e) {
         return Promise.resolve([]);
@@ -175,7 +182,7 @@ export class DatabaseTreeProvider implements vscode.TreeDataProvider<DatabaseTre
           if (col.pk) { badges.push('PK'); }
           if (col.notnull) { badges.push('NOT NULL'); }
           const label = `${col.name} (${col.type || 'ANY'}${badges.length ? ' · ' + badges.join(' · ') : ''})`;
-          return new DatabaseTreeItem(label, vscode.TreeItemCollapsibleState.None, 'column', element.filePath);
+          return new DatabaseTreeItem(label, vscode.TreeItemCollapsibleState.None, 'column', element.filePath, undefined, undefined, `${element.filePath}:col:${element.table}:${col.name}`);
         }));
       } catch (e) {
         return Promise.resolve([]);
