@@ -739,12 +739,19 @@
     if (el) { el.style.display = visible ? 'flex' : 'none'; }
   }
 
+  var _errorHideTimer = null;
   function showError(msg) {
+    if (!msg) { return; }                    // ignore empty / null / undefined
     var toast = document.getElementById('error-toast');
     if (!toast) { return; }
-    toast.textContent = msg;
-    toast.style.display = 'block';
-    setTimeout(function() { toast.style.display = 'none'; }, 5000);
+    var textEl = toast.querySelector('.error-toast-text');
+    if (textEl) { textEl.textContent = String(msg); }
+    toast.style.display = 'flex';
+    if (_errorHideTimer) { clearTimeout(_errorHideTimer); }
+    _errorHideTimer = setTimeout(function() {
+      toast.style.display = 'none';
+      _errorHideTimer = null;
+    }, 6000);
   }
 
   function escapeHtml(str) {

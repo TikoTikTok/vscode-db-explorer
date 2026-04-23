@@ -465,13 +465,37 @@ table.data-grid {
   right: 20px;
   background: #c72e2e;
   color: #fff;
-  padding: 10px 16px;
+  padding: 10px 14px 10px 16px;
   border-radius: 4px;
   font-size: 13px;
   z-index: 1001;
   max-width: 350px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   word-break: break-word;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.error-toast-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-toast-close {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.error-toast-close:hover {
+  color: #fff;
 }
 
 .icon-btn {
