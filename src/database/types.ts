@@ -5,4 +5,4 @@ export interface ForeignKeyInfo { from: string; table: string; to: string; on_up
 export interface TableSchema { name: string; sql: string; columns: ColumnInfo[]; indexes: IndexInfo[]; foreignKeys: ForeignKeyInfo[]; }
 export interface QueryResult { columns: string[]; rows: any[][]; rowsAffected: number; }
 export interface DatabaseInfo { filePath: string; fileSize: number; sqliteVersion: string; pageSize: number; pageCount: number; encoding: string; journalMode: string; walMode: boolean; tableCount: number; tables: { name: string; rowCount: number }[]; }
-export interface DataPage { columns: string[]; rows: any[][]; total: number; offset: number; limit: number; }
+export interface DataPage { columns: string[]; rows: any[][]; total: number; offset: number; limit: number; pkCol: string | null; }

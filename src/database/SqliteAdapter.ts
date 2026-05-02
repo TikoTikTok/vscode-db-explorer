@@ -118,7 +118,12 @@ export class SqliteAdapter {
     const countResult = this.exec(`SELECT COUNT(*) FROM "${this.esc(table)}" ${wherePart}`);
     const total = countResult.rows[0][0] as number;
     const dataResult = this.exec(`SELECT * FROM "${this.esc(table)}" ${wherePart} ${orderPart} LIMIT ${limit} OFFSET ${offset}`);
-    return { columns: dataResult.columns, rows: dataResult.rows, total, offset, limit };
+
+    const pkResult = this.exec(`PRAGMA table_info("${this.esc(table)}")`);
+    const pkRow = pkResult.rows.find(r => r[5] === 1);
+    const pkCol = pkRow ? (pkRow[1] as string) : (dataResult.columns[0] ?? null);
+
+    return { columns: dataResult.columns, rows: dataResult.rows, total, offset, limit, pkCol };
   }
 
   executeQuery(sql: string): QueryResult {

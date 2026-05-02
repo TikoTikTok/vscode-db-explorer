@@ -222,7 +222,7 @@
     showLoading(false);
     state.totalRows = data.total;
     state.columns = data.columns;
-    state.pkColumn = data.columns && data.columns.length > 0 ? data.columns[0] : null;
+    state.pkColumn = data.pkCol !== undefined ? data.pkCol : (data.columns && data.columns.length > 0 ? data.columns[0] : null);
 
     var container = document.getElementById('data-grid-container');
     if (!container) { return; }
